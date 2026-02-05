@@ -76,19 +76,22 @@ def get_survey_questions(survey_id: str, db: Session = Depends(get_db)):
 
 @router.post("/validate-questions", response_model=ValidateQuestionsResponse)
 def validate_questions(request: ValidateQuestionsRequest, db: Session = Depends(get_db)):
-    """Validate that question IDs belong to the specified survey."""
+    """Validate that question IDs (by name) belong to the specified survey."""
     survey = db.query(Survey).filter(Survey.id == request.survey_id).first()
     if not survey:
         return ValidateQuestionsResponse(valid=False, errors=[f"Survey {request.survey_id} not found"])
     
-    # Get all question IDs for this survey
-    survey_questions = db.query(Question.id).filter(Question.survey_id == request.survey_id).all()
-    valid_question_ids = {q.id for q in survey_questions}
+    # Get all questions for this survey with their names
+    survey_questions = db.query(Question.id, Question.name).filter(Question.survey_id == request.survey_id).all()
+    
+    # Create mapping from question name to question id
+    question_name_to_id = {q.name: q.id for q in survey_questions}
+    valid_question_names = set(question_name_to_id.keys())
     
     errors = []
-    for q_id in request.question_ids:
-        if q_id not in valid_question_ids:
-            errors.append(f"Question {q_id} not found in survey {request.survey_id}")
+    for q_name in request.question_ids:
+        if q_name not in valid_question_names:
+            errors.append(f"Question {q_name} not found in survey {request.survey_id}")
     
     return ValidateQuestionsResponse(valid=len(errors) == 0, errors=errors)
 
