@@ -26,19 +26,50 @@ def get_answer_options_for_question(question_id: str, db: Session = Depends(get_
 
 @router.get("/questions/{question_ids_str}", response_model=Dict[str, List[AnswerOptionSchema]])
 def get_answer_options_for_questions(question_ids_str: str, db: Session = Depends(get_db)):
-    """Get answer options for multiple questions. question_ids_str is comma-separated."""
+    """Get answer options for multiple questions. question_ids_str can be names (Q1, Q2) or UUIDs."""
     question_ids = [qid.strip() for qid in question_ids_str.split(",")]
     
-    answer_options = db.query(AnswerOption).filter(
-        AnswerOption.question_id.in_(question_ids)
-    ).order_by(AnswerOption.question_id, AnswerOption.code).all()
+    print(f"DEBUG: Looking for answer options for: {question_ids}")
     
-    # Group by question_id
-    result: Dict[str, List[AnswerOptionSchema]] = {}
+    # Сначала попробуем найти по именам вопросов
+    questions_by_name = db.query(Question).filter(Question.name.in_(question_ids)).all()
+    
+    if questions_by_name:
+        # Нашли по именам
+        question_uuids = [q.id for q in questions_by_name]
+        print(f"DEBUG: Found questions by name, UUIDs: {question_uuids}")
+        answer_options = db.query(AnswerOption).filter(
+            AnswerOption.question_id.in_(question_uuids)
+        ).order_by(AnswerOption.question_id, AnswerOption.code).all()
+    else:
+        # Ищем по UUID (старый вариант)
+        print(f"DEBUG: No questions found by name, trying by UUID")
+        answer_options = db.query(AnswerOption).filter(
+            AnswerOption.question_id.in_(question_ids)
+        ).order_by(AnswerOption.question_id, AnswerOption.code).all()
+    
+    print(f"DEBUG: Found {len(answer_options)} answer options")
+    
+    # Group by question_id (UUID)
+    result_by_uuid: Dict[str, List[AnswerOptionSchema]] = {}
     for ao in answer_options:
-        if ao.question_id not in result:
-            result[ao.question_id] = []
-        result[ao.question_id].append(AnswerOptionSchema.model_validate(ao))
+        if ao.question_id not in result_by_uuid:
+            result_by_uuid[ao.question_id] = []
+        result_by_uuid[ao.question_id].append(AnswerOptionSchema.model_validate(ao))
     
-    return result
+    # Конвертируем в формат с именами вопросов
+    result_by_name: Dict[str, List[AnswerOptionSchema]] = {}
+    
+    # Получаем все вопросы, чтобы сопоставить UUID с именами
+    all_question_ids = list(result_by_uuid.keys())
+    if all_question_ids:
+        questions = db.query(Question.id, Question.name).filter(Question.id.in_(all_question_ids)).all()
+        question_id_to_name = {q.id: q.name for q in questions}
+        
+        for question_uuid, options in result_by_uuid.items():
+            question_name = question_id_to_name.get(question_uuid, question_uuid)
+            result_by_name[question_name] = options
+    
+    print(f"DEBUG: Result by name: {list(result_by_name.keys())}")
+    return result_by_name
 

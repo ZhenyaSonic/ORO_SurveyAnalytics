@@ -25,16 +25,22 @@
           >
             <template v-slot:activator="{ props }">
               <span v-bind="props">
-                {{ formatCodes(response.value) }}
+                <!-- Используем безопасное форматирование -->
+                {{ safeFormatValue(response) }}
               </span>
             </template>
             <div>
-              <div v-for="code in response.value" :key="code">
-                {{ code }}: {{ getAnswerLabel(response.question_id, code) }}
+              <div v-if="response.question_type === 'SINGLE'">
+                {{ safeFormatValue(response) }}: {{ getAnswerLabel(response.question_id, response.value) }}
+              </div>
+              <div v-else-if="response.question_type === 'MULTIPLE'">
+                <div v-for="code in response.value" :key="code">
+                  {{ code }}: {{ getAnswerLabel(response.question_id, code) }}
+                </div>
               </div>
             </div>
           </v-tooltip>
-          <span v-else>{{ response.value }}</span>
+          <span v-else>{{ response.value || '' }}</span>
         </td>
       </tr>
     </tbody>
@@ -57,36 +63,73 @@ export default {
     }
   },
   setup(props) {
-    const respondents = computed(() => props.responses.respondents || [])
+    console.log('=== ResponsesTable DEBUG ===')
+    console.log('Responses data:', props.responses)
+    console.log('Answer options map:', props.answerOptionsMap)
+
+    const respondents = computed(() => {
+      const respondents = props.responses.respondents || []
+      console.log('Number of respondents:', respondents.length)
+      if (respondents.length > 0) {
+        console.log('Sample responses:', respondents[0].responses)
+      }
+      return respondents
+    })
     
     const questions = computed(() => {
       if (respondents.value.length === 0) return []
       return respondents.value[0].responses.map(r => ({
-        question_id: r.question_id,  // Теперь это будет имя (Q6), а не UUID
+        question_id: r.question_id,
         question_name: r.question_name,
         question_type: r.question_type
       }))
     })
 
-    const formatCodes = (codes) => {
-      if (Array.isArray(codes)) {
-        return codes.join(', ')
+    const safeFormatValue = (response) => {
+      console.log('safeFormatValue called:', {
+        question: response.question_name,
+        type: response.question_type,
+        value: response.value,
+        valueType: typeof response.value
+      })
+      
+      if (response.question_type === 'SINGLE') {
+        // Безопасное форматирование для SINGLE вопросов
+        // Учитываем, что 0 - валидное значение
+        if (response.value === null || response.value === undefined) {
+          return ''
+        }
+        // Явно преобразуем в строку
+        return String(response.value)
+      } else if (response.question_type === 'MULTIPLE') {
+        if (Array.isArray(response.value)) {
+          return response.value.join(', ')
+        }
+        return ''
       }
-      return codes || ''
+      // Для TEXT вопросов
+      return response.value || ''
     }
 
-    const getAnswerLabel = (questionName, code) => {
-      // Нужно получить UUID вопроса по его имени
-      // Пока используем имя как ключ
-      const options = props.answerOptionsMap[questionName] || []
-      const option = options.find(opt => opt.code === code)
+    const getAnswerLabel = (questionId, code) => {
+      console.log(`getAnswerLabel: questionId=${questionId}, code=${code} (${typeof code})`)
+      const options = props.answerOptionsMap[questionId] || []
+      
+      // Приводим код к числу для сравнения (опции хранятся как числа)
+      const numCode = Number(code)
+      const option = options.find(opt => {
+        // Опции могут храниться как числа или строки
+        const optCode = Number(opt.code)
+        return optCode === numCode
+      })
+      
       return option ? option.label : `Code ${code}`
     }
 
     return {
       respondents,
       questions,
-      formatCodes,
+      safeFormatValue,
       getAnswerLabel
     }
   }

@@ -174,23 +174,62 @@ export default {
       const questionIds = parseQuestionIds()
       
       try {
+        console.log('=== FRONTEND DEBUG START ===')
+        
         // Load responses
         const responsesResponse = await surveysApi.getResponses(
           selectedSurvey.value,
           questionIds
         )
         responsesData.value = responsesResponse.data
-
+        
+        // Глубокая проверка данных
+        console.log('Full API Response:', JSON.stringify(responsesResponse.data, null, 2))
+        
+        if (responsesData.value.respondents && responsesData.value.respondents.length > 0) {
+          const firstRespondent = responsesData.value.respondents[0]
+          console.log('\n=== FIRST RESPONDENT DETAILS ===')
+          console.log('Respondent ID:', firstRespondent.respondent_id)
+          
+          firstRespondent.responses.forEach((resp, idx) => {
+            console.log(`\nResponse ${idx + 1}:`)
+            console.log('  Question ID:', resp.question_id)
+            console.log('  Question Name:', resp.question_name)
+            console.log('  Question Type:', resp.question_type)
+            console.log('  Value:', resp.value)
+            console.log('  Value Type:', typeof resp.value)
+            console.log('  Is Number?', typeof resp.value === 'number')
+            console.log('  Is Zero?', resp.value === 0)
+            console.log('  String Value:', String(resp.value))
+          })
+        }
+        
         // Load answer options for SINGLE/MULTIPLE questions
         const questions = surveysStore.questions[selectedSurvey.value] || []
         const choiceQuestionIds = questions
           .filter(q => q.type === 'SINGLE' || q.type === 'MULTIPLE')
           .map(q => q.id)
         
+        console.log('\n=== LOADING ANSWER OPTIONS ===')
+        console.log('Choice question IDs:', choiceQuestionIds)
+        
         if (choiceQuestionIds.length > 0) {
           const optionsResponse = await surveysApi.getAnswerOptions(choiceQuestionIds)
           answerOptionsMap.value = optionsResponse.data
+          
+          // Проверяем опции ответов
+          console.log('Answer options loaded:', answerOptionsMap.value)
+          
+          // Проверяем типы данных в опциях
+          Object.keys(answerOptionsMap.value).forEach(qId => {
+            const options = answerOptionsMap.value[qId]
+            if (options && options.length > 0) {
+              console.log(`Question ${qId}: first option code=${options[0].code}, type=${typeof options[0].code}`)
+            }
+          })
         }
+        
+        console.log('=== FRONTEND DEBUG END ===')
       } catch (error) {
         console.error('Error loading responses:', error)
         validationError.value = 'Ошибка при загрузке ответов: ' + (error.response?.data?.detail || error.message)
@@ -221,4 +260,3 @@ export default {
   }
 }
 </script>
-

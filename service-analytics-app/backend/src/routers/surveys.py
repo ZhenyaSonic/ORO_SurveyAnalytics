@@ -78,6 +78,8 @@ def validate_questions(request: ValidateQuestionsRequest, db: Session = Depends(
 @router.post("/responses", response_model=GetResponsesResponse)
 def get_responses(request: GetResponsesRequest, db: Session = Depends(get_db)):
     """Get responses for specified questions (by name) in a survey."""
+    print(f"=== DEBUG START: Request for survey {request.survey_id}, questions: {request.question_ids} ===")
+    
     # Validate survey exists
     survey = db.query(Survey).filter(Survey.id == request.survey_id).first()
     if not survey:
@@ -88,6 +90,10 @@ def get_responses(request: GetResponsesRequest, db: Session = Depends(get_db)):
         Question.survey_id == request.survey_id,
         Question.name.in_(request.question_ids)
     ).all()
+    
+    print(f"DEBUG: Found {len(questions)} questions by name")
+    for q in questions:
+        print(f"  - {q.name} (ID: {q.id}, Type: {q.type})")
     
     question_name_map = {q.name: q for q in questions}
     
@@ -113,6 +119,8 @@ def get_responses(request: GetResponsesRequest, db: Session = Depends(get_db)):
         ChoiceResponse.question_id.in_(question_uuids)
     ).all()
     
+    print(f"DEBUG: Found {len(text_responses)} text responses and {len(choice_responses)} choice responses")
+    
     # Group responses by respondent
     respondent_data: Dict[str, Dict[str, Any]] = {}
     
@@ -136,7 +144,7 @@ def get_responses(request: GetResponsesRequest, db: Session = Depends(get_db)):
                 "value": tr.text
             }
     
-    # Process choice responses - ВАЖНО: нужна отдельная логика для MULTIPLE вопросов
+    # Process choice responses - КЛЮЧЕВОЕ ИСПРАВЛЕНИЕ!
     for cr in choice_responses:
         if cr.respondent_id not in respondent_data:
             respondent_data[cr.respondent_id] = {}
@@ -155,46 +163,56 @@ def get_responses(request: GetResponsesRequest, db: Session = Depends(get_db)):
         if not answer_option:
             continue
         
+        print(f"DEBUG - Processing: respondent={cr.respondent_id}, question={question_name}, "
+              f"type={question.type}, code={answer_option.code}")
+        
+        # Инициализируем структуру для вопроса, если её нет
         if question_name not in respondent_data[cr.respondent_id]:
-            # Инициализируем структуру данных для вопроса
             question_type_str = "SINGLE" if question.type == QuestionType.SINGLE else "MULTIPLE"
+            # Для SINGLE вопросов значение должно быть числом (кодом), а не массивом
+            initial_value = [] if question.type == QuestionType.MULTIPLE else None
+            
             respondent_data[cr.respondent_id][question_name] = {
                 "question_id": question_name,
                 "question_name": question.name,
                 "question_type": question_type_str,
-                "value": [] if question.type == QuestionType.MULTIPLE else None,
-                "_temp_data": []  # Временное хранилище для порядка и кодов
+                "value": initial_value
             }
         
-        # Для SINGLE вопросов - заменяем значение
+        # Обрабатываем в зависимости от типа вопроса
+        current_response = respondent_data[cr.respondent_id][question_name]
+        
         if question.type == QuestionType.SINGLE:
-            respondent_data[cr.respondent_id][question_name]["value"] = answer_option.code
-        # Для MULTIPLE вопросов - добавляем в список
-        elif question.type == QuestionType.MULTIPLE:
-            # Добавляем данные во временное хранилище
-            if "_temp_data" not in respondent_data[cr.respondent_id][question_name]:
-                respondent_data[cr.respondent_id][question_name]["_temp_data"] = []
+            # Для SINGLE вопросов - устанавливаем числовое значение кода
+            current_response["value"] = answer_option.code
+            print(f"DEBUG - Set SINGLE value: {question_name} = {answer_option.code}")
+        else:  # MULTIPLE
+            # Для MULTIPLE вопросов - добавляем код в массив
+            if not isinstance(current_response["value"], list):
+                current_response["value"] = []
             
-            respondent_data[cr.respondent_id][question_name]["_temp_data"].append(
-                (cr.response_order, answer_option.code)
-            )
+            # Используем response_order для правильной сортировки
+            if "_orders" not in current_response:
+                current_response["_orders"] = []
+            
+            current_response["_orders"].append((cr.response_order, answer_option.code))
     
-    # После обработки всех ответов, обрабатываем MULTIPLE вопросы
+    # После обработки всех ответов, сортируем MULTIPLE вопросы
     for respondent_id, responses_dict in respondent_data.items():
         for question_name, response_data in responses_dict.items():
-            if "_temp_data" in response_data:
-                # Сортируем по порядку и извлекаем уникальные коды
-                temp_data = response_data["_temp_data"]
+            if response_data.get("question_type") == "MULTIPLE" and "_orders" in response_data:
+                order_info = response_data["_orders"]
+                # Сортируем по порядку и получаем уникальные коды
                 seen_codes = set()
                 sorted_codes = []
                 
-                for order, code in sorted(temp_data, key=lambda x: x[0]):
+                for order, code in sorted(order_info, key=lambda x: x[0]):
                     if code not in seen_codes:
                         sorted_codes.append(code)
                         seen_codes.add(code)
                 
                 response_data["value"] = sorted_codes
-                del response_data["_temp_data"]  # Удаляем временное поле
+                del response_data["_orders"]
     
     # Convert to response format
     respondents_list = []
@@ -204,15 +222,14 @@ def get_responses(request: GetResponsesRequest, db: Session = Depends(get_db)):
         for q_name in request.question_ids:
             if q_name in responses_dict:
                 response_data = responses_dict[q_name].copy()
-                # Убедимся, что для SINGLE вопросов значение корректное
+                
+                # ВАЖНО: Убедимся, что для SINGLE вопросов значение корректное
                 if response_data["question_type"] == "SINGLE":
                     if response_data["value"] is None:
-                        response_data["value"] = ""
-                elif response_data["question_type"] == "MULTIPLE":
-                    if response_data["value"] is None:
-                        response_data["value"] = []
+                        response_data["value"] = ""  # Пустая строка вместо None
+                        print(f"DEBUG - WARNING: SINGLE question {q_name} has None value for respondent {respondent_id}")
                 
-                # Создаем ResponseData без временных полей
+                # Создаем ResponseData
                 clean_data = {
                     "question_id": response_data["question_id"],
                     "question_name": response_data["question_name"],
@@ -226,12 +243,15 @@ def get_responses(request: GetResponsesRequest, db: Session = Depends(get_db)):
                 if question:
                     question_type_str = "TEXT" if question.type == QuestionType.TEXT else \
                                       "SINGLE" if question.type == QuestionType.SINGLE else "MULTIPLE"
+                    # Для SINGLE вопросов без ответа - пустая строка, не массив!
+                    default_value = "" if question.type == QuestionType.TEXT else \
+                                   "" if question.type == QuestionType.SINGLE else []
+                    
                     responses_list.append(ResponseData(
                         question_id=q_name,
                         question_name=question.name,
                         question_type=question_type_str,
-                        value="" if question.type == QuestionType.TEXT else 
-                              [] if question.type == QuestionType.MULTIPLE else ""
+                        value=default_value
                     ))
         
         respondents_list.append(RespondentResponseData(
@@ -239,6 +259,15 @@ def get_responses(request: GetResponsesRequest, db: Session = Depends(get_db)):
             responses=responses_list
         ))
     
+    # Отладочный вывод результата
+    print(f"\n=== DEBUG: SAMPLE RESPONSE DATA ===")
+    if respondents_list:
+        sample = respondents_list[0]
+        print(f"First respondent: {sample.respondent_id}")
+        for resp in sample.responses:
+            print(f"  - {resp.question_name} ({resp.question_type}): {resp.value} (type: {type(resp.value)})")
+    
+    print(f"=== DEBUG END: Returning data for {len(respondents_list)} respondents ===")
     return GetResponsesResponse(respondents=respondents_list)
 
 
