@@ -54,6 +54,9 @@ ORO_test/
 - Node.js 18+
 - PostgreSQL 14+
 
+### Запуск через Docker приоритетно
+   # Смотреть в service-analytics-app\README.Docker.md
+
 ### Backend
 
 1. Установите зависимости:

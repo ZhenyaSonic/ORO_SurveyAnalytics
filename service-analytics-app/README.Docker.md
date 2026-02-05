@@ -18,10 +18,21 @@ cd service-analytics-app
 docker-compose up --build
 ```
 
-3. Приложение будет доступно:
+3. Зайти в контейнер backend:
+```bash
+docker-compose exec backend bash
+```
+
+4. Запустить заполнение БД:
+```bash
+python -m src.load_data
+```
+
+5. Приложение будет доступно:
    - Frontend: http://localhost
    - Backend API: http://localhost:8000
    - PostgreSQL: localhost:5432
+   - Frontend: http://localhost/survey/<survey_id>
 
 ## Команды
 
@@ -64,8 +75,11 @@ docker-compose build --no-cache
 # Войти в контейнер backend
 docker-compose exec backend bash
 
+# Войти в контейнер postgres в БД 
+docker exec -it survey_postgres psql -U postgres -d survey_db
+
 # Запустить скрипт загрузки данных
-python src/load_data.py
+python -m src.load_data
 ```
 
 ## Структура сервисов
