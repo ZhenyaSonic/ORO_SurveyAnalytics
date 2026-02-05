@@ -14,7 +14,7 @@ class Settings(BaseSettings):
     APP_HOST: str = Field(default="0.0.0.0", description="Хост приложения")
     APP_PORT: int = Field(default=8000, description="Порт приложения")
 
-    DATABASE_URL = os.getenv(
+    DATABASE_URL: str = os.getenv(
         "DATABASE_URL",
         "postgresql://postgres:postgres@localhost:5432/survey_db"
     )

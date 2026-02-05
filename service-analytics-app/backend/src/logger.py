@@ -4,7 +4,7 @@ import sys
 import json
 from datetime import datetime
 from typing import Any, Dict
-from settings import settings
+from .settings import settings
 
 
 class JsonFormatter(logging.Formatter):

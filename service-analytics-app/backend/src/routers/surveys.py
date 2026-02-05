@@ -16,7 +16,7 @@ from src.schemas import (
     ResponseData,
     QuestionTypeEnum
 )
-from logger import logger
+from src.logger import logger
 
 router = APIRouter(prefix="/api/surveys", tags=["surveys"])
 

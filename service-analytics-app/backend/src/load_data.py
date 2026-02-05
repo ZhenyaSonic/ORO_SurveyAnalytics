@@ -10,6 +10,7 @@ import xml.etree.ElementTree as ET
 import pandas as pd
 from pathlib import Path
 from sqlalchemy.orm import Session
+from src.logger import logger
 
 try:
     from .models import (

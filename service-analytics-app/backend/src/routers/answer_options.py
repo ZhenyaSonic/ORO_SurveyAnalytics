@@ -6,7 +6,7 @@ from sqlalchemy.orm import Session
 from typing import List, Dict
 from src.models import get_db, AnswerOption, Question
 from src.schemas import AnswerOption as AnswerOptionSchema
-from logger import logger
+from src.logger import logger
 
 router = APIRouter(prefix="/api/answer-options", tags=["answer-options"])
 
