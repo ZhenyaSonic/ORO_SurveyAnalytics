@@ -16,6 +16,7 @@ from src.schemas import (
     ResponseData,
     QuestionTypeEnum
 )
+from logger import logger
 
 router = APIRouter(prefix="/api/surveys", tags=["surveys"])
 
@@ -76,7 +77,7 @@ def validate_questions(request: ValidateQuestionsRequest, db: Session = Depends(
 @router.post("/responses", response_model=GetResponsesResponse)
 def get_responses(request: GetResponsesRequest, db: Session = Depends(get_db)):
     """Get responses for specified questions (by name) in a survey."""
-    print(f"=== DEBUG START: Request for survey {request.survey_id}, questions: {request.question_ids} ===")
+    logger.debug(f"=== DEBUG START: Request for survey {request.survey_id}, questions: {request.question_ids} ===")
 
     survey = db.query(Survey).filter(Survey.id == request.survey_id).first()
     if not survey:
@@ -87,9 +88,9 @@ def get_responses(request: GetResponsesRequest, db: Session = Depends(get_db)):
         Question.name.in_(request.question_ids)
     ).all()
 
-    print(f"DEBUG: Found {len(questions)} questions by name")
+    logger.debug(f"DEBUG: Found {len(questions)} questions by name")
     for q in questions:
-        print(f"  - {q.name} (ID: {q.id}, Type: {q.type})")
+        logger.info(f"  - {q.name} (ID: {q.id}, Type: {q.type})")
 
     question_name_map = {q.name: q for q in questions}
 
@@ -112,7 +113,7 @@ def get_responses(request: GetResponsesRequest, db: Session = Depends(get_db)):
         ChoiceResponse.question_id.in_(question_uuids)
     ).all()
 
-    print(f"DEBUG: Found {len(text_responses)} text responses and {len(choice_responses)} choice responses")
+    logger.debug(f"DEBUG: Found {len(text_responses)} text responses and {len(choice_responses)} choice responses")
 
     respondent_data: Dict[str, Dict[str, Any]] = {}
 
@@ -151,8 +152,10 @@ def get_responses(request: GetResponsesRequest, db: Session = Depends(get_db)):
         if not answer_option:
             continue
 
-        print(f"DEBUG - Processing: respondent={cr.respondent_id}, question={question_name}, "
-              f"type={question.type}, code={answer_option.code}")
+        logger.debug(
+            f"DEBUG - Processing: respondent={cr.respondent_id}, question={question_name}, "
+            f"type={question.type}, code={answer_option.code}"
+        )
 
         if question_name not in respondent_data[cr.respondent_id]:
             question_type_str = "SINGLE" if question.type == QuestionType.SINGLE else "MULTIPLE"
@@ -171,7 +174,7 @@ def get_responses(request: GetResponsesRequest, db: Session = Depends(get_db)):
         if question.type == QuestionType.SINGLE:
 
             current_response["value"] = answer_option.code
-            print(f"DEBUG - Set SINGLE value: {question_name} = {answer_option.code}")
+            logger.debug(f"DEBUG - Set SINGLE value: {question_name} = {answer_option.code}")
         else:
             if not isinstance(current_response["value"], list):
                 current_response["value"] = []
@@ -207,7 +210,7 @@ def get_responses(request: GetResponsesRequest, db: Session = Depends(get_db)):
                 if response_data["question_type"] == "SINGLE":
                     if response_data["value"] is None:
                         response_data["value"] = ""
-                        print(f"DEBUG - WARNING: SINGLE question {q_name} has None value for respondent {respondent_id}")
+                        logger.warning(f"DEBUG - WARNING: SINGLE question {q_name} has None value for respondent {respondent_id}")
 
                 clean_data = {
                     "question_id": response_data["question_id"],
@@ -236,14 +239,14 @@ def get_responses(request: GetResponsesRequest, db: Session = Depends(get_db)):
             responses=responses_list
         ))
 
-    print(f"\n=== DEBUG: SAMPLE RESPONSE DATA ===")
+    logger.debug(f"\n=== DEBUG: SAMPLE RESPONSE DATA ===")
     if respondents_list:
         sample = respondents_list[0]
-        print(f"First respondent: {sample.respondent_id}")
+        logger.info(f"First respondent: {sample.respondent_id}")
         for resp in sample.responses:
-            print(f"  - {resp.question_name} ({resp.question_type}): {resp.value} (type: {type(resp.value)})")
+            logger.info(f"  - {resp.question_name} ({resp.question_type}): {resp.value} (type: {type(resp.value)})")
 
-    print(f"=== DEBUG END: Returning data for {len(respondents_list)} respondents ===")
+    logger.debug(f"=== DEBUG END: Returning data for {len(respondents_list)} respondents ===")
     return GetResponsesResponse(respondents=respondents_list)
 
 

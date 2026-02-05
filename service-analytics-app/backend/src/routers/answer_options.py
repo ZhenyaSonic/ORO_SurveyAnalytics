@@ -6,6 +6,7 @@ from sqlalchemy.orm import Session
 from typing import List, Dict
 from src.models import get_db, AnswerOption, Question
 from src.schemas import AnswerOption as AnswerOptionSchema
+from logger import logger
 
 router = APIRouter(prefix="/api/answer-options", tags=["answer-options"])
 
@@ -29,23 +30,23 @@ def get_answer_options_for_questions(question_ids_str: str, db: Session = Depend
     """Get answer options for multiple questions. question_ids_str can be names (Q1, Q2) or UUIDs."""
     question_ids = [qid.strip() for qid in question_ids_str.split(",")]
 
-    print(f"DEBUG: Looking for answer options for: {question_ids}")
+    logger.debug(f"DEBUG: Looking for answer options for: {question_ids}")
 
     questions_by_name = db.query(Question).filter(Question.name.in_(question_ids)).all()
 
     if questions_by_name:
         question_uuids = [q.id for q in questions_by_name]
-        print(f"DEBUG: Found questions by name, UUIDs: {question_uuids}")
+        logger.debug(f"DEBUG: Found questions by name, UUIDs: {question_uuids}")
         answer_options = db.query(AnswerOption).filter(
             AnswerOption.question_id.in_(question_uuids)
         ).order_by(AnswerOption.question_id, AnswerOption.code).all()
     else:
-        print(f"DEBUG: No questions found by name, trying by UUID")
+        logger.debug(f"DEBUG: No questions found by name, trying by UUID")
         answer_options = db.query(AnswerOption).filter(
             AnswerOption.question_id.in_(question_ids)
         ).order_by(AnswerOption.question_id, AnswerOption.code).all()
 
-    print(f"DEBUG: Found {len(answer_options)} answer options")
+    logger.debug(f"DEBUG: Found {len(answer_options)} answer options")
 
     result_by_uuid: Dict[str, List[AnswerOptionSchema]] = {}
     for ao in answer_options:
@@ -64,5 +65,5 @@ def get_answer_options_for_questions(question_ids_str: str, db: Session = Depend
             question_name = question_id_to_name.get(question_uuid, question_uuid)
             result_by_name[question_name] = options
 
-    print(f"DEBUG: Result by name: {list(result_by_name.keys())}")
+    logger.debug(f"DEBUG: Result by name: {list(result_by_name.keys())}")
     return result_by_name

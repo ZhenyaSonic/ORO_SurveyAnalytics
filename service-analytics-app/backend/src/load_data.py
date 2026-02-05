@@ -107,12 +107,12 @@ def parse_xml_survey(xml_path: Path, survey_id: str, db: Session) -> None:
 
 def load_responses_from_excel(excel_path: Path, db: Session) -> None:
     """Load responses from Excel file into database."""
-    print(f"Loading Excel file from: {excel_path}")
+    logger.info(f"Loading Excel file from: {excel_path}")
 
     df = pd.read_excel(excel_path)
     df = df.replace('nan', pd.NA)
 
-    print(f"Excel loaded successfully! Rows: {len(df)}")
+    logger.info(f"Excel loaded successfully! Rows: {len(df)}")
 
     text_responses_count = 0
     choice_responses_count = 0
@@ -126,7 +126,7 @@ def load_responses_from_excel(excel_path: Path, db: Session) -> None:
         question_type = int(row["type"])
 
         if idx % 10000 == 0:
-            print(f"Processing row {idx}/{len(df)}...")
+            logger.info(f"Processing row {idx}/{len(df)}...")
 
         if respondent_id not in respondents_cache:
 
@@ -184,47 +184,47 @@ def load_responses_from_excel(excel_path: Path, db: Session) -> None:
         if idx > 0 and idx % 5000 == 0:
             try:
                 db.commit()
-                print(f"Committed {idx} rows...")
+                logger.info(f"Committed {idx} rows...")
             except Exception as e:
                 db.rollback()
-                print(f"Error at row {idx}, rolling back: {e}")
+                logger.info(f"Error at row {idx}, rolling back: {e}")
                 continue
 
     try:
         db.commit()
     except Exception as e:
-        print(f"Final commit error: {e}")
+        logger.info(f"Final commit error: {e}")
         db.rollback()
         raise
 
-    print(f"\n=== Loading Summary ===")
-    print(f"Total rows in Excel: {len(df)}")
-    print(f"Unique respondents created: {respondents_count}")
-    print(f"Text responses added: {text_responses_count}")
-    print(f"Choice responses added: {choice_responses_count}")
-    print(f"Total responses added: {text_responses_count + choice_responses_count}")
+    logger.info(f"\n=== Loading Summary ===")
+    logger.info(f"Total rows in Excel: {len(df)}")
+    logger.info(f"Unique respondents created: {respondents_count}")
+    logger.info(f"Text responses added: {text_responses_count}")
+    logger.info(f"Choice responses added: {choice_responses_count}")
+    logger.info(f"Total responses added: {text_responses_count + choice_responses_count}")
 
 
 def load_all_data(xml_dir: Path, excel_path: Path, db: Session) -> None:
     """Load all survey data from XML files and Excel responses."""
-    print("Loading surveys from XML files...")
+    logger.info("Loading surveys from XML files...")
 
     xml_files = sorted(xml_dir.glob("*.xml"))
     for xml_file in xml_files:
         survey_id = xml_file.stem
-        print(f"Loading survey {survey_id} from {xml_file.name}...")
+        logger.info(f"Loading survey {survey_id} from {xml_file.name}...")
         parse_xml_survey(xml_file, survey_id, db)
         db.commit()
 
-    print("Loading responses from Excel file...")
+    logger.info("Loading responses from Excel file...")
     load_responses_from_excel(excel_path, db)
     db.commit()
-    print("Data loading completed!")
+    logger.info("Data loading completed!")
 
 
 def main():
     """Main function to create database and load data."""
-    print("Creating database tables...")
+    logger.info("Creating database tables...")
     Base.metadata.create_all(bind=engine)
 
     base_dir = Path(os.getenv("INPUT_BASE_DIR", Path(__file__).resolve().parent.parent))
@@ -236,7 +236,7 @@ def main():
     try:
         load_all_data(xml_dir, excel_path, db)
     except Exception as e:
-        print(f"Error loading data: {e}")
+        logger.info(f"Error loading data: {e}")
         db.rollback()
         raise
     finally:
