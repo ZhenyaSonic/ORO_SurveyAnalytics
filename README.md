@@ -54,8 +54,8 @@ ORO_test/
 - Node.js 18+
 - PostgreSQL 14+
 
-### Запуск через Docker приоритетно
-   # Смотреть в service-analytics-app\README.Docker.md
+### Запуск через Docker (приоритетно)
+   [Инструкция Docker](./service-analytics-app/README.Docker.md)
 
 ### Backend
 
