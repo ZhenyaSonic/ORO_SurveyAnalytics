@@ -19,9 +19,7 @@ class Question(Base):
     text = Column(String(1000), nullable=False)
     type = Column(SQLEnum(QuestionType), nullable=False)
 
-    # Relationships
     survey = relationship("Survey", back_populates="questions")
     answer_options = relationship("AnswerOption", back_populates="question", cascade="all, delete-orphan")
     text_responses = relationship("TextResponse", back_populates="question")
     choice_responses = relationship("ChoiceResponse", back_populates="question")
-

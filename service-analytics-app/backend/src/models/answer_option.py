@@ -11,7 +11,5 @@ class AnswerOption(Base):
     code = Column(Integer, nullable=False)
     label = Column(String(500), nullable=False)
 
-    # Relationships
     question = relationship("Question", back_populates="answer_options")
     choice_responses = relationship("ChoiceResponse", back_populates="answer_option")
-

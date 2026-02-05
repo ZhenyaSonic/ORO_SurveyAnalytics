@@ -13,7 +13,6 @@ app = FastAPI(
     version="1.0.0"
 )
 
-# Configure CORS
 cors_origins = os.getenv(
     "CORS_ORIGINS",
     (
@@ -37,7 +36,6 @@ def on_startup() -> None:
     Base.metadata.create_all(bind=engine)
 
 
-# Include routers
 app.include_router(surveys.router)
 app.include_router(answer_options.router)
 

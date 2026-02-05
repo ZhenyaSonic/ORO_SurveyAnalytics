@@ -1,10 +1,9 @@
 # Docker Setup для Service Analytics App
-
 Этот документ описывает, как запустить приложение через Docker Compose.
 
 ## Требования
 
-- Docker Desktop (или Docker Engine + Docker Compose)
+- Docker Desktop
 - Минимум 2GB свободной оперативной памяти
 
 ## Быстрый старт
@@ -91,7 +90,7 @@ python src/load_data.py
 Если порт занят, измените маппинг портов в `docker-compose.yml`:
 ```yaml
 ports:
-  - "8001:8000"  # Вместо 8000:8000
+  - "8001:8000"
 ```
 
 ### Проблемы с подключением к БД
@@ -117,7 +116,7 @@ export COMPOSE_DOCKER_CLI_BUILD=1
 docker-compose up --build
 ```
 
-2. **Соберите образы по отдельности**:
+2. **Соберите образы по отдельности** для экономии памяти:
 ```bash
 # Сначала backend
 docker-compose build backend
@@ -140,34 +139,3 @@ docker-compose up
 5. **Используйте зеркала репозиториев** (если проблема с доступом к официальным репозиториям):
    - Для Debian: настройте `/etc/apt/sources.list` в Dockerfile
    - Для pip: используйте `--index-url` с альтернативным индексом
-
-### Проблемы с памятью (exit code 137)
-
-Если сборка падает с ошибкой `exit code 137` (процесс убит из-за нехватки памяти):
-
-1. **Текущий Dockerfile не требует gcc** - все пакеты доступны в бинарном виде, попробуйте снова:
-```bash
-docker-compose up --build
-```
-
-2. **Увеличьте лимит памяти Docker**:
-   - Docker Desktop: Settings → Resources → Memory (рекомендуется минимум 4GB)
-   - Docker Engine: настройте в `/etc/docker/daemon.json`
-
-3. **Если все-таки нужен gcc** (маловероятно), используйте альтернативный Dockerfile:
-```bash
-# Временно переименуйте Dockerfile
-cd backend
-mv Dockerfile Dockerfile.original
-mv Dockerfile.with-gcc Dockerfile
-cd ..
-docker-compose up --build
-```
-
-4. **Соберите образы по отдельности** для экономии памяти:
-```bash
-docker-compose build backend
-docker-compose build frontend
-docker-compose up
-```
-

@@ -4,7 +4,6 @@ from sqlalchemy.orm import sessionmaker
 import os
 from typing import Generator
 
-# Database URL from environment variable or default
 DATABASE_URL = os.getenv(
     "DATABASE_URL",
     "postgresql://postgres:postgres@localhost:5432/survey_db"
@@ -23,4 +22,3 @@ def get_db() -> Generator:
         yield db
     finally:
         db.close()
-

@@ -30,7 +30,7 @@ class QuestionBase(BaseModel):
 
 class Question(QuestionBase):
     survey_id: str
-    
+
     class Config:
         from_attributes = True
 
@@ -43,14 +43,14 @@ class AnswerOptionBase(BaseModel):
 
 class AnswerOption(AnswerOptionBase):
     question_id: str
-    
+
     class Config:
         from_attributes = True
 
 
 class RespondentResponse(BaseModel):
     respondent_id: str
-    responses: Dict[str, Any]  # question_id -> response data
+    responses: Dict[str, Any]
 
 
 class ValidateQuestionsRequest(BaseModel):
@@ -72,7 +72,7 @@ class ResponseData(BaseModel):
     question_id: str
     question_name: str
     question_type: str
-    value: Any  # Can be text, list of codes, or dict with codes and labels
+    value: Any
 
 
 class RespondentResponseData(BaseModel):
@@ -82,4 +82,3 @@ class RespondentResponseData(BaseModel):
 
 class GetResponsesResponse(BaseModel):
     respondents: List[RespondentResponseData]
-

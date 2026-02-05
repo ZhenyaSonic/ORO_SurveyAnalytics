@@ -12,7 +12,6 @@ class TextResponse(Base):
     survey_id = Column(String(50), ForeignKey("surveys.id"), nullable=False)
     text = Column(Text, nullable=False)
 
-    # Relationships
     respondent = relationship("Respondent", back_populates="text_responses")
     question = relationship("Question", back_populates="text_responses")
     survey = relationship("Survey", back_populates="text_responses")
@@ -28,7 +27,6 @@ class ChoiceResponse(Base):
     answer_option_id = Column(String(100), ForeignKey("answer_options.id"), nullable=False)
     response_order = Column(Integer, default=1)
 
-    # Relationships
     respondent = relationship("Respondent", back_populates="choice_responses")
     question = relationship("Question", back_populates="choice_responses")
     answer_option = relationship("AnswerOption", back_populates="choice_responses")
