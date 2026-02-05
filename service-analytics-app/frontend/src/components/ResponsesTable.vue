@@ -62,7 +62,7 @@ export default {
     const questions = computed(() => {
       if (respondents.value.length === 0) return []
       return respondents.value[0].responses.map(r => ({
-        question_id: r.question_id,
+        question_id: r.question_id,  // Теперь это будет имя (Q6), а не UUID
         question_name: r.question_name,
         question_type: r.question_type
       }))
@@ -75,8 +75,10 @@ export default {
       return codes || ''
     }
 
-    const getAnswerLabel = (questionId, code) => {
-      const options = props.answerOptionsMap[questionId] || []
+    const getAnswerLabel = (questionName, code) => {
+      // Нужно получить UUID вопроса по его имени
+      // Пока используем имя как ключ
+      const options = props.answerOptionsMap[questionName] || []
       const option = options.find(opt => opt.code === code)
       return option ? option.label : `Code ${code}`
     }
@@ -90,4 +92,3 @@ export default {
   }
 }
 </script>
-
